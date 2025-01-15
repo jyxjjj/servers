@@ -1,36 +1,41 @@
 FROM fedora:latest
 LABEL MAINTAINER="DESMG <ghcr@desmg.org>"
 LABEL DESCRIPTION="DESMG Web Server"
-LABEL org.opencontainers.image.source=https://github.com/jyxjjj/nginx
+LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
 LABEL org.opencontainers.image.description="DESMG Web Server"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV NGINX_VERSION='1.27.3'
 ENV NGINX_BANNER='DESMG-Web-Server'
 ENV NGINX_BANNER_VERSION='2.27.3'
 USER root
+COPY DESMG.repo /root/DESMG.repo
 RUN /bin/sh -c set -x && \
+    echo "Adding user www..." && \
     groupadd --system --gid 999 www && \
     useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin && \
+    echo "Configuring repos..." && \
     rm -f /etc/yum.repos.d/* && \
-    curl -s -o /etc/yum.repos.d/DESMG.repo https://www.desmg.com/fedora/repo && \
-    sed -i 's/metalink=https:\/\/www\.desmg\.com\/fedora\/metalink\/releases\/\$releasever\/\$basearch/metalink=https:\/\/mirrors\.fedoraproject\.org\/metalink?repo=fedora-\$releasever\&arch=\$basearch/g' /etc/yum.repos.d/DESMG.repo && \
-    sed -i 's/metalink=https:\/\/www\.desmg\.com\/fedora\/metalink\/updates\/\$releasever\/\$basearch/metalink=https:\/\/mirrors\.fedoraproject\.org\/metalink?repo=updates-released-f\$releasever\&arch=\$basearch/g' /etc/yum.repos.d/DESMG.repo && \
+    mv /root/DESMG.repo /etc/yum.repos.d/DESMG.repo && \
+    echo "Installing packages..." && \
     dnf update -y --refresh && \
     dnf install -y \
+        binutils-gold \
+        cmake \
         gcc \
+        git \
         make \
         openssl-devel \
         pcre2-devel \
-        zlib-devel \
-        binutils-gold \
-        wget \
-        cmake \
-        git && \
+        zlib-ng-compat-devel \
+        wget2-wget && \
+    echo "Creating dirs..." && \
     mkdir -p /data && \
     mkdir -p /www/server/nginx && \
     chown -R www:www /www && \
     cd /data && \
+    echo "Cloning brotli..." && \
     git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli && \
+    echo "Building brotli..." && \
     cd ngx_brotli/deps/brotli && \
     mkdir out && \
     cd out && \
@@ -41,12 +46,14 @@ RUN /bin/sh -c set -x && \
         -DCMAKE_INSTALL_PREFIX=./installed .. && \
     cmake --build . --config Release --target brotlienc && \
     cd /data && \
+    echo "Downloading Nginx..." && \
     curl -s -o /data/nginx-$NGINX_VERSION.tar.gz https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz && \
     tar -zxf nginx-$NGINX_VERSION.tar.gz && \
     cd nginx-$NGINX_VERSION && \
     sed -i "s#\"nginx/\"#\"$NGINX_BANNER/\"#" src/core/nginx.h && \
     sed -i "s#\"NGINX\"#\"$NGINX_BANNER\"#" src/core/nginx.h && \
     sed -i "s#\"$NGINX_VERSION\"#\"$NGINX_BANNER_VERSION\"#" src/core/nginx.h && \
+    echo "Building Nginx..." && \
     ./configure \
     --user=www --group=www \
     --prefix=/www/server/nginx \
@@ -78,19 +85,22 @@ RUN /bin/sh -c set -x && \
     --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2' && \
     make -j$(nproc) && \
     make install && \
+    echo "Cleaning up..." && \
     dnf remove -y \
+        binutils-gold \
+        cmake \
         gcc \
+        git \
         make \
         openssl-devel \
         pcre2-devel \
-        zlib-devel \
-        binutils-gold \
-        wget \
-        cmake \
-        git && \
+        zlib-ng-compat-devel \
+        wget2-wget && \
     dnf clean all && \
     rm -rf /data && \
-    ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
+    echo "Creating symlinks..." && \
+    ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx && \
+    echo "Done."
 STOPSIGNAL SIGQUIT
 USER www
 CMD ["nginx", "-g", "daemon off;"]

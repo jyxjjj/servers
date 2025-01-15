@@ -1,0 +1,96 @@
+FROM fedora:latest
+LABEL MAINTAINER="DESMG <ghcr@desmg.org>"
+LABEL DESCRIPTION="DESMG Web Server"
+LABEL org.opencontainers.image.source=https://github.com/jyxjjj/nginx
+LABEL org.opencontainers.image.description="DESMG Web Server"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+ENV NGINX_VERSION='1.27.3'
+ENV NGINX_BANNER='DESMG-Web-Server'
+ENV NGINX_BANNER_VERSION='2.27.3'
+USER root
+RUN /bin/sh -c set -x && \
+    groupadd --system --gid 999 www && \
+    useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin && \
+    rm -f /etc/yum.repos.d/* && \
+    curl -s -o /etc/yum.repos.d/DESMG.repo https://www.desmg.com/fedora/repo && \
+    sed -i 's/metalink=https:\/\/www\.desmg\.com\/fedora\/metalink\/releases\/\$releasever\/\$basearch/metalink=https:\/\/mirrors\.fedoraproject\.org\/metalink?repo=fedora-\$releasever\&arch=\$basearch/g' /etc/yum.repos.d/DESMG.repo && \
+    sed -i 's/metalink=https:\/\/www\.desmg\.com\/fedora\/metalink\/updates\/\$releasever\/\$basearch/metalink=https:\/\/mirrors\.fedoraproject\.org\/metalink?repo=updates-released-f\$releasever\&arch=\$basearch/g' /etc/yum.repos.d/DESMG.repo && \
+    dnf update -y --refresh && \
+    dnf install -y \
+        gcc \
+        make \
+        openssl-devel \
+        pcre2-devel \
+        zlib-devel \
+        binutils-gold \
+        wget \
+        cmake \
+        git && \
+    mkdir -p /data && \
+    mkdir -p /www/server/nginx && \
+    chown -R www:www /www && \
+    cd /data && \
+    git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli && \
+    cd ngx_brotli/deps/brotli && \
+    mkdir out && \
+    cd out && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+        -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+        -DCMAKE_INSTALL_PREFIX=./installed .. && \
+    cmake --build . --config Release --target brotlienc && \
+    cd /data && \
+    curl -s -o /data/nginx-$NGINX_VERSION.tar.gz https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz && \
+    tar -zxf nginx-$NGINX_VERSION.tar.gz && \
+    cd nginx-$NGINX_VERSION && \
+    sed -i "s#\"nginx/\"#\"$NGINX_BANNER/\"#" src/core/nginx.h && \
+    sed -i "s#\"NGINX\"#\"$NGINX_BANNER\"#" src/core/nginx.h && \
+    sed -i "s#\"$NGINX_VERSION\"#\"$NGINX_BANNER_VERSION\"#" src/core/nginx.h && \
+    ./configure \
+    --user=www --group=www \
+    --prefix=/www/server/nginx \
+    --add-module=/data/ngx_brotli \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_stub_status_module \
+    --with-http_flv_module \
+    --with-http_mp4_module \
+    --with-http_gzip_static_module \
+    --with-http_ssl_module \
+    --with-http_realip_module \
+    --with-http_sub_module \
+    --with-http_v2_module \
+    --with-http_v3_module \
+    --with-mail \
+    --with-mail_ssl_module \
+    --with-stream \
+    --with-stream_realip_module \
+    --with-stream_ssl_module \
+    --with-stream_ssl_preread_module \
+    --with-threads \
+    --with-file-aio \
+    --without-http_ssi_module \
+    --without-http_scgi_module \
+    --without-http_uwsgi_module \
+    --with-openssl-opt='zlib no-ssl2 no-ssl3 no-rc2 no-rc4 no-rc5 no-md2 no-md4 -march=native -Wl,-flto=jobserver' \
+    --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC' \
+    --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2' && \
+    make -j$(nproc) && \
+    make install && \
+    dnf remove -y \
+        gcc \
+        make \
+        openssl-devel \
+        pcre2-devel \
+        zlib-devel \
+        binutils-gold \
+        wget \
+        cmake \
+        git && \
+    dnf clean all && \
+    rm -rf /data && \
+    ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
+STOPSIGNAL SIGQUIT
+USER www
+CMD ["nginx", "-g", "daemon off;"]

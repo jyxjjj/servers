@@ -79,10 +79,10 @@ RUN chmod -R 755 /www
 RUN curl -s -o /usr/bin/composer https://getcomposer.org/download/latest-stable/composer.phar
 RUN chmod 777 /usr/bin/composer
 RUN ln -sf /www/server/php/bin/php /usr/bin/php
-    ln -sf /www/server/php/bin/phpize /usr/bin/phpize
-    ln -sf /www/server/php/bin/pear /usr/bin/pear
-    ln -sf /www/server/php/bin/pecl /usr/bin/pecl
-    ln -sf /www/server/php/sbin/php-fpm /usr/bin/php-fpm
+RUN ln -sf /www/server/php/bin/phpize /usr/bin/phpize
+RUN ln -sf /www/server/php/bin/pear /usr/bin/pear
+RUN ln -sf /www/server/php/bin/pecl /usr/bin/pecl
+RUN ln -sf /www/server/php/sbin/php-fpm /usr/bin/php-fpm
 RUN composer self-update
 RUN pecl channel-update pecl.php.net
 RUN pear channel-update pear.php.net

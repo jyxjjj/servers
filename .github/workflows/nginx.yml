@@ -7,8 +7,8 @@ on:
         description: 'Nginx Version'
         required: true
         default: '1.27.3'
-      nversion:
-        description: 'Nginx Version'
+      dwsversion:
+        description: 'DWS Version'
         required: true
         default: '2.27.3'
 
@@ -21,7 +21,7 @@ jobs:
       id-token: write
     env:
       VERSION: ${{ github.event.inputs.version }}
-      NVERSION: ${{ github.event.inputs.nversion }}
+      DWSVERSION: ${{ github.event.inputs.dwsversion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +39,6 @@ jobs:
           platforms: linux/amd64
           build-args: |
             VERSION=${{ env.VERSION }}
-            NVERSION=${{ env.NVERSION }}
+            DWSVERSION=${{ env.dwsversion }}
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/nginx:${{ env.VERSION }}

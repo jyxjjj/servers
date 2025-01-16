@@ -4,9 +4,11 @@ LABEL DESCRIPTION="DESMG Web Server"
 LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
 LABEL org.opencontainers.image.description="DESMG Web Server"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
-ENV NGINX_VERSION='1.27.3'
+ARG VERSION
+ARG NVERSION
+ENV NGINX_VERSION=$VERSION
 ENV NGINX_BANNER='DESMG-Web-Server'
-ENV NGINX_BANNER_VERSION='2.27.3'
+ENV NGINX_BANNER_VERSION=$NVERSION
 USER root
 RUN groupadd --system --gid 999 www && \
     useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin
@@ -73,29 +75,21 @@ RUN ./configure \
     --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2'
 RUN make -j$(nproc)
 RUN make install
-RUN dnf remove -y \
-        binutils-gold \
-        cmake \
-        gcc \
-        git \
-        make \
-        openssl-devel \
-        pcre2-devel \
-        zlib-ng-compat-devel
-RUN dnf clean all
-RUN rm -rf /data
-RUN ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
+RUN chown -R www:www /www
+RUN chmod -R 755 /www
 
-FROM scratch
+FROM alpine:latest
 LABEL MAINTAINER="DESMG <ghcr@desmg.org>"
 LABEL DESCRIPTION="DESMG Web Server"
 LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
 LABEL org.opencontainers.image.description="DESMG Web Server"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
-ENV NGINX_VERSION='1.27.3'
+ENV NGINX_VERSION=$VERSION
 ENV NGINX_BANNER='DESMG-Web-Server'
-ENV NGINX_BANNER_VERSION='2.27.3'
-COPY --from=build / /
+ENV NGINX_BANNER_VERSION=$NVERSION
+COPY --from=build /lib64 /lib64
+COPY --from=build /www/server/nginx /www/server/nginx
+RUN ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
 STOPSIGNAL SIGQUIT
 USER www
 CMD ["nginx", "-g", "daemon off;"]

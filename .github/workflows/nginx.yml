@@ -7,6 +7,10 @@ on:
         description: 'Nginx Version'
         required: true
         default: '1.27.3'
+      nversion:
+        description: 'Nginx Version'
+        required: true
+        default: '2.27.3'
 
 jobs:
   Nginx:
@@ -17,6 +21,7 @@ jobs:
       id-token: write
     env:
       VERSION: ${{ github.event.inputs.version }}
+      NVERSION: ${{ github.event.inputs.nversion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,5 +37,8 @@ jobs:
         with:
           file: ./Nginx
           platforms: linux/amd64
+          build-args: |
+            VERSION=${{ env.VERSION }}
+            NVERSION=${{ env.NVERSION }}
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/nginx:${{ env.VERSION }}

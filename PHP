@@ -30,9 +30,9 @@ WORKDIR /data
 RUN curl -s -o /data/php-$PHP_VERSION.tar.gz https://www.php.net/distributions/php-$PHP_VERSION.tar.gz
 RUN tar -zxf php-$PHP_VERSION.tar.gz
 WORKDIR /data/php-$PHP_VERSION
-ENV CFLAGS='-m64 -O3 -g -DTCP_FASTOPEN=23 -march=native -fstack-protector-strong -fuse-ld=gold' \
-ENV CPPFLAGS='-m64 -O3 -g -DTCP_FASTOPEN=23 -march=native -fstack-protector-strong -fuse-ld=gold' \
-ENV LDFLAGS='-Wl,-z,relro -Wl,-z,now -Wl,-O1' \
+ENV CFLAGS='-m64 -O3 -g -DTCP_FASTOPEN=23 -march=native -fstack-protector-strong -fuse-ld=gold'
+ENV CPPFLAGS='-m64 -O3 -g -DTCP_FASTOPEN=23 -march=native -fstack-protector-strong -fuse-ld=gold'
+ENV LDFLAGS='-Wl,-z,relro -Wl,-z,now -Wl,-O1'
 RUN ./configure \
     --prefix=/www/server/php \
     --with-config-file-path=/www/server/php/etc \

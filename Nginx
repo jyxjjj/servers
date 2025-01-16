@@ -8,12 +8,10 @@ ENV NGINX_VERSION='1.27.3'
 ENV NGINX_BANNER='DESMG-Web-Server'
 ENV NGINX_BANNER_VERSION='2.27.3'
 USER root
-RUN /bin/sh -c set -x
 RUN groupadd --system --gid 999 www && \
     useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin
 RUN rm -f /etc/yum.repos.d/*
 COPY DESMG.repo /etc/yum.repos.d/DESMG.repo
-RUN dnf autoremove -y
 RUN dnf update -y --refresh
 RUN dnf install -y \
         binutils-gold \

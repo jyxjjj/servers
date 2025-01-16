@@ -14,6 +14,7 @@ COPY DESMG.repo /etc/yum.repos.d/DESMG.repo
 RUN dnf update -y --refresh
 RUN dnf install -y \
         binutils-gold \
+        autoconf \
         zlib-ng-compat-devel \
         jemalloc-devel \
         libxml2-devel sqlite-devel \

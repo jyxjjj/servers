@@ -1,4 +1,4 @@
-FROM fedora:latest
+FROM fedora:latest AS build
 LABEL MAINTAINER="DESMG <ghcr@desmg.org>"
 LABEL DESCRIPTION="DESMG Web Server"
 LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
@@ -8,17 +8,14 @@ ENV NGINX_VERSION='1.27.3'
 ENV NGINX_BANNER='DESMG-Web-Server'
 ENV NGINX_BANNER_VERSION='2.27.3'
 USER root
-COPY DESMG.repo /root/DESMG.repo
-RUN /bin/sh -c set -x && \
-    echo "Adding user www..." && \
-    groupadd --system --gid 999 www && \
-    useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin && \
-    echo "Configuring repos..." && \
-    rm -f /etc/yum.repos.d/* && \
-    mv /root/DESMG.repo /etc/yum.repos.d/DESMG.repo && \
-    echo "Installing packages..." && \
-    dnf update -y --refresh && \
-    dnf install -y \
+RUN /bin/sh -c set -x
+RUN groupadd --system --gid 999 www && \
+    useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin
+RUN rm -f /etc/yum.repos.d/*
+COPY DESMG.repo /etc/yum.repos.d/DESMG.repo
+RUN dnf autoremove -y
+RUN dnf update -y --refresh
+RUN dnf install -y \
         binutils-gold \
         cmake \
         gcc \
@@ -26,35 +23,28 @@ RUN /bin/sh -c set -x && \
         make \
         openssl-devel \
         pcre2-devel \
-        zlib-ng-compat-devel \
-        wget2-wget && \
-    echo "Creating dirs..." && \
-    mkdir -p /data && \
-    mkdir -p /www/server/nginx && \
-    chown -R www:www /www && \
-    cd /data && \
-    echo "Cloning brotli..." && \
-    git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli && \
-    echo "Building brotli..." && \
-    cd ngx_brotli/deps/brotli && \
-    mkdir out && \
-    cd out && \
-    cmake -DCMAKE_BUILD_TYPE=Release \
+        zlib-ng-compat-devel
+RUN mkdir -p /data
+RUN mkdir -p /www/server/nginx
+RUN chown -R www:www /www
+WORKDIR /data
+RUN git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli
+RUN mkdir -p /data/ngx_brotli/deps/brotli/out
+WORKDIR /data/ngx_brotli/deps/brotli/out
+RUN cmake -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_SHARED_LIBS=OFF \
         -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
         -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
-        -DCMAKE_INSTALL_PREFIX=./installed .. && \
-    cmake --build . --config Release --target brotlienc && \
-    cd /data && \
-    echo "Downloading Nginx..." && \
-    curl -s -o /data/nginx-$NGINX_VERSION.tar.gz https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz && \
-    tar -zxf nginx-$NGINX_VERSION.tar.gz && \
-    cd nginx-$NGINX_VERSION && \
+        -DCMAKE_INSTALL_PREFIX=./installed ..
+RUN cmake --build . --config Release --target brotlienc
+WORKDIR /data
+RUN curl -s -o /data/nginx-$NGINX_VERSION.tar.gz https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz
+RUN tar -zxf nginx-$NGINX_VERSION.tar.gz
+WORKDIR /data/nginx-$NGINX_VERSION
     sed -i "s#\"nginx/\"#\"$NGINX_BANNER/\"#" src/core/nginx.h && \
     sed -i "s#\"NGINX\"#\"$NGINX_BANNER\"#" src/core/nginx.h && \
-    sed -i "s#\"$NGINX_VERSION\"#\"$NGINX_BANNER_VERSION\"#" src/core/nginx.h && \
-    echo "Building Nginx..." && \
-    ./configure \
+    sed -i "s#\"$NGINX_VERSION\"#\"$NGINX_BANNER_VERSION\"#" src/core/nginx.h
+RUN ./configure \
     --user=www --group=www \
     --prefix=/www/server/nginx \
     --add-module=/data/ngx_brotli \
@@ -82,11 +72,10 @@ RUN /bin/sh -c set -x && \
     --without-http_uwsgi_module \
     --with-openssl-opt='zlib no-ssl2 no-ssl3 no-rc2 no-rc4 no-rc5 no-md2 no-md4 -march=native -Wl,-flto=jobserver' \
     --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC' \
-    --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2' && \
-    make -j$(nproc) && \
-    make install && \
-    echo "Cleaning up..." && \
-    dnf remove -y \
+    --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2'
+RUN make -j$(nproc)
+RUN make install
+RUN dnf remove -y \
         binutils-gold \
         cmake \
         gcc \
@@ -94,13 +83,21 @@ RUN /bin/sh -c set -x && \
         make \
         openssl-devel \
         pcre2-devel \
-        zlib-ng-compat-devel \
-        wget2-wget && \
-    dnf clean all && \
-    rm -rf /data && \
-    echo "Creating symlinks..." && \
-    ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx && \
-    echo "Done."
+        zlib-ng-compat-devel
+RUN dnf clean all
+RUN rm -rf /data
+RUN ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
+
+FROM scratch
+LABEL MAINTAINER="DESMG <ghcr@desmg.org>"
+LABEL DESCRIPTION="DESMG Web Server"
+LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
+LABEL org.opencontainers.image.description="DESMG Web Server"
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+ENV NGINX_VERSION='1.27.3'
+ENV NGINX_BANNER='DESMG-Web-Server'
+ENV NGINX_BANNER_VERSION='2.27.3'
+COPY --from=build / /
 STOPSIGNAL SIGQUIT
 USER www
 CMD ["nginx", "-g", "daemon off;"]

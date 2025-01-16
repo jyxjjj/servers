@@ -41,7 +41,7 @@ WORKDIR /data
 RUN curl -s -o /data/nginx-$NGINX_VERSION.tar.gz https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz
 RUN tar -zxf nginx-$NGINX_VERSION.tar.gz
 WORKDIR /data/nginx-$NGINX_VERSION
-    sed -i "s#\"nginx/\"#\"$NGINX_BANNER/\"#" src/core/nginx.h && \
+RUN sed -i "s#\"nginx/\"#\"$NGINX_BANNER/\"#" src/core/nginx.h && \
     sed -i "s#\"NGINX\"#\"$NGINX_BANNER\"#" src/core/nginx.h && \
     sed -i "s#\"$NGINX_VERSION\"#\"$NGINX_BANNER_VERSION\"#" src/core/nginx.h
 RUN ./configure \

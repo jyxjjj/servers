@@ -75,6 +75,17 @@ RUN ./configure \
     --with-cc-opt='-m64 -O3 -g -DTCP_FASTOPEN=23 -ffast-math -march=native -flto=jobserver -fstack-protector-strong -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wno-implicit-fallthrough -fno-strict-aliasing -fPIC -Wp,-D_FORTIFY_SOURCE=2'
 RUN make -j$(nproc)
 RUN make install
+RUN dnf remove -y \
+        binutils-gold \
+        cmake \
+        gcc \
+        git \
+        make \
+        openssl-devel \
+        pcre2-devel \
+        zlib-ng-compat-devel
+RUN dnf clean all
+RUN rm -rf /data
 RUN chown -R www:www /www
 RUN chmod -R 755 /www
 RUN ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
@@ -91,5 +102,4 @@ ENV NGINX_BANNER_VERSION=$DWSVERSION
 COPY --from=build / /
 
 STOPSIGNAL SIGQUIT
-USER www
 CMD ["nginx", "-g", "daemon off;"]

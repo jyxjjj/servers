@@ -89,9 +89,7 @@ ENV NGINX_BANNER='DESMG-Web-Server'
 ENV NGINX_BANNER_VERSION=$DWSVERSION
 COPY --from=build /lib64 /lib64
 COPY --from=build /www/server/nginx /www/server/nginx
-RUN groupadd --system --gid 999 www && \
-    useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin && \
-    ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
+RUN ln -sf /www/server/nginx/sbin/nginx /usr/sbin/nginx
 STOPSIGNAL SIGQUIT
 USER www
 CMD ["nginx", "-g", "daemon off;"]

@@ -93,11 +93,13 @@ ENV PHP_VERSION='8.4.2'
 COPY --from=build /lib64 /lib64
 COPY --from=build /www/server/php /www/server/php
 COPY --from=build /usr/bin/composer /usr/bin/composer
-RUN ln -sf /www/server/php/bin/php /usr/bin/php
-RUN ln -sf /www/server/php/bin/phpize /usr/bin/phpize
-RUN ln -sf /www/server/php/bin/pear /usr/bin/pear
-RUN ln -sf /www/server/php/bin/pecl /usr/bin/pecl
-RUN ln -sf /www/server/php/sbin/php-fpm /usr/bin/php-fpm
+RUN groupadd --system --gid 999 www && \
+    useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin && \
+    ln -sf /www/server/php/bin/php /usr/bin/php && \
+    ln -sf /www/server/php/bin/phpize /usr/bin/phpize && \
+    ln -sf /www/server/php/bin/pear /usr/bin/pear && \
+    ln -sf /www/server/php/bin/pecl /usr/bin/pecl && \
+    ln -sf /www/server/php/sbin/php-fpm /usr/bin/php-fpm
 USER www
 #/www/server/php/sbin/php-fpm --nodaemonize --fpm-config /www/server/php/etc/php-fpm.conf
 CMD ["php-fpm", "--nodaemonize", "--fpm-config", "/www/server/php/etc/php-fpm.conf"]

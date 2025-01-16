@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.source=https://github.com/jyxjjj/servers
 LABEL org.opencontainers.image.description="DESMG PHP"
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
 ARG VERSION
-ENV PHP_VERSION='8.4.2'
+ENV PHP_VERSION=$VERSION
 USER root
 RUN groupadd --system --gid 999 www && \
     useradd --system --gid 999 --uid 999 www --home /www --shell /sbin/nologin
